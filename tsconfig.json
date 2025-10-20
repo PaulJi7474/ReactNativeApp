@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./*"] },
+    "ignoreDeprecations": "6.0"
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+, "src/app/form/_layout.tsx", "src/app/(drawer)/myForms.js", "src/app/_layout.js", "src/app/form/map.js", "src/app/(drawer)/index.js", "src/app/(drawer)/about.js", "src/app/(drawer)/_layout.js", "src/app/addForm.js", "src/app/form/records.js", "src/app/form/formPage.js"  ]
+}
