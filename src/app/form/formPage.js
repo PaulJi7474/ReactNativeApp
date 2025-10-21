@@ -15,6 +15,8 @@ import {
 
 import { getFormById } from "../app";
 
+const NO_FORM_SELECTED_ERROR = "No form selected.";
+
 export default function FormScreen() {
   const { formId: formIdParam, formName, formDescription } = useLocalSearchParams();
   const formId = Array.isArray(formIdParam) ? formIdParam[0] : formIdParam;
@@ -75,7 +77,7 @@ export default function FormScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0A6DFF" />
           </View>
-        ) : error ? (
+        ) : error && error !== NO_FORM_SELECTED_ERROR ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
