@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -8,12 +11,76 @@ import {
   View,
 } from "react-native";
 
+import { getFormById } from "../app";
+
 export default function FormScreen() {
+  const { formId: formIdParam, formName, formDescription } = useLocalSearchParams();
+  const formId = Array.isArray(formIdParam) ? formIdParam[0] : formIdParam;
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    name: formName,
+    description: formDescription,
+  });
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadForm = async () => {
+      if (!formId) {
+        setError("No form selected.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const data = await getFormById(formId);
+        if (isActive) {
+          if (data) {
+            setForm({ name: data.name, description: data.description });
+            setError("");
+          } else {
+            setError("We couldn't find that form.");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load form", err);
+        if (isActive) {
+          setError("Unable to load form details. Please try again later.");
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadForm();
+
+    return () => {
+      isActive = false;
+    };
+  }, [formId]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.heading}>Form – Random Notes!</Text>
-        <Text style={styles.subtitle}>A form to store multiline notes.</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0A6DFF" />
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.heading}>{form?.name || "Form"}</Text>
+            {form?.description ? (
+              <Text style={styles.subtitle}>{form.description}</Text>
+            ) : null}
+          </>
+        )}
 
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
@@ -57,16 +124,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   container: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    paddingTop: 24,
-    gap: 24,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#0F172A",
-    textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
@@ -102,6 +159,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#0F172A",
   },
+  cancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#FEE2E2",
+  },
+  cancelButtonText: {
+    color: "#B91C1C",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   secondaryButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -120,8 +188,60 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#0A6DFF",
   },
+  manageContent: {
+    gap: 16,
+    backgroundColor: "#F8FAFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  manageSubtitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F172A",
+  },
+  inputGroup: {
+    gap: 8,
+  },
   noteField: {
     gap: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#0F172A",
+    backgroundColor: "#FFFFFF",
+  },
+  dropdownMock: {
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "500",
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  switchLabel: {
+    fontSize: 15,
+    color: "#0F172A",
+    fontWeight: "500",
   },
   fieldLabel: {
     fontSize: 15,
@@ -162,5 +282,20 @@ const styles = StyleSheet.create({
     color: "#0A6DFF",
     fontSize: 14,
     fontWeight: "500",
+  },
+  loadingContainer: {
+    alignItems: "center",
+  },
+  errorContainer: {
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  errorText: {
+    color: "#B91C1C",
+    fontSize: 14,
+    textAlign: "center",
   },
 });
