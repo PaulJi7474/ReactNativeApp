@@ -100,5 +100,5 @@ export async function updateForm(id, body) {
  * @returns {Promise<object|null>} - The deleted form representation, if returned.
  */
 export async function deleteForm(id) {
-  return apiRequest(`/form?id=eq.${id}`, "DELETE");
+  return apiRequest(`/form?id=eq.${encodeURIComponent(id)}`, "DELETE");
 }

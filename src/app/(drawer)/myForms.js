@@ -15,6 +15,8 @@ import {
 
 import { deleteForm, fetchForms } from "../app";
 
+const EXCLUDED_DESCRIPTION = "A form to store details about my programming books";
+
 export default function MyFormsScreen() {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,12 @@ export default function MyFormsScreen() {
         setLoading(true);
       }
       const response = await fetchForms();
-      setForms(Array.isArray(response) ? response : []);
+      const availableForms = Array.isArray(response) ? response : [];
+      setForms(
+        availableForms.filter((form) =>
+          (form.description ?? "").trim() !== EXCLUDED_DESCRIPTION
+        )
+      );
     } catch (error) {
       console.error("Failed to load forms", error);
       Alert.alert("Error", "Unable to load forms. Please try again later.");
@@ -53,7 +60,7 @@ export default function MyFormsScreen() {
   }, [loadForms]);
 
   const handleDelete = useCallback(
-    (id) => {
+    (formId) => {
       Alert.alert("Delete Form", "Are you sure you want to delete this form?", [
         { text: "Cancel", style: "cancel" },
         {
@@ -61,8 +68,14 @@ export default function MyFormsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await deleteForm(id);
-              await loadForms();
+              await deleteForm(formId);
+              setForms((currentForms) =>
+                currentForms.filter(
+                  (item) => String(item.id) !== String(formId)
+                )
+              );
+              await loadForms(false);
+              Alert.alert("Form Deleted", "The form has been removed.");
             } catch (error) {
               console.error("Failed to delete form", error);
               Alert.alert("Error", "Unable to delete the form. Please try again later.");
