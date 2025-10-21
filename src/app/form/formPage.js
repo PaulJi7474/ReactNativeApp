@@ -6,7 +6,9 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -22,6 +24,10 @@ export default function FormScreen() {
     description: formDescription,
   });
   const [error, setError] = useState("");
+  const [showFieldForm, setShowFieldForm] = useState(false);
+  const [fieldName, setFieldName] = useState("");
+  const [isRequired, setIsRequired] = useState(false);
+  const [storesNumericValues, setStoresNumericValues] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -85,16 +91,82 @@ export default function FormScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Manage Fields</Text>
+            {showFieldForm ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setShowFieldForm(false);
+                  setFieldName("");
+                  setIsRequired(false);
+                  setStoresNumericValues(false);
+                }}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Ionicons
-              name="add-circle-outline"
-              size={18}
-              color="#0A6DFF"
-              style={styles.secondaryIcon}
-            />
-            <Text style={styles.secondaryButtonText}>Add Field</Text>
-          </TouchableOpacity>
+          {showFieldForm ? (
+            <View style={styles.manageContent}>
+              <Text style={styles.manageSubtitle}>Add a Field</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.fieldLabel}>Field name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Field name"
+                  placeholderTextColor="#94A3B8"
+                  value={fieldName}
+                  onChangeText={setFieldName}
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.fieldLabel}>Field type</Text>
+                <View style={styles.dropdownMock}>
+                  <Text style={styles.dropdownText}>Single Line Text</Text>
+                  <Ionicons name="chevron-down" size={18} color="#1E293B" />
+                </View>
+              </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Required</Text>
+                <Switch
+                  value={isRequired}
+                  onValueChange={setIsRequired}
+                  trackColor={{ false: "#CBD5F5", true: "#0A6DFF" }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Stores Numeric Values</Text>
+                <Switch
+                  value={storesNumericValues}
+                  onValueChange={setStoresNumericValues}
+                  trackColor={{ false: "#CBD5F5", true: "#0A6DFF" }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <TouchableOpacity style={styles.primaryButton}>
+                <Ionicons
+                  name="add"
+                  size={18}
+                  color="#FFFFFF"
+                  style={styles.primaryIcon}
+                />
+                <Text style={styles.primaryButtonText}>Save Field</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setShowFieldForm(true)}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={18}
+                color="#0A6DFF"
+                style={styles.secondaryIcon}
+              />
+              <Text style={styles.secondaryButtonText}>Add Field</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.card}>
