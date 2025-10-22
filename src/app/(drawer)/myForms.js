@@ -65,7 +65,7 @@ export default function MyFormsScreen() {
 
   const navigateToForm = (form) => {
     router.push({
-      pathname: "/form",
+      pathname: "../main/formPage",
       params: {
         formId: form.id,
         formName: form.name,
@@ -82,7 +82,7 @@ export default function MyFormsScreen() {
           accessibilityRole="button"
           onPress={() => router.push("/addForm")}
         >
-          <Ionicons name="add" size={18} color="colors.white" style={styles.addIcon} />
+          <Ionicons name="add" size={18} color={colors.white} style={styles.addIcon} />
           <Text style={styles.addButtonText}>Add Forms</Text>
         </TouchableOpacity>
       </View>

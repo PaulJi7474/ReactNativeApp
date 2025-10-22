@@ -26,7 +26,7 @@ export default function Index() {
         <TouchableOpacity
           accessibilityLabel="Start building forms"
           style={styles.primaryButton}
-          onPress={() => router.push("/form")}
+          onPress={() => router.push("/(drawer)/myForms")}
         >
           <Ionicons
             name="document-text-outline"
