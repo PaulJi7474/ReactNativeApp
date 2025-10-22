@@ -1,7 +1,9 @@
 import { useFocusEffect } from "@react-navigation/native";
+// eslint-disable-next-line import/no-unresolved
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from "react-native";
+// eslint-disable-next-line import/no-unresolved
 import MapView, { Circle } from "react-native-maps";
 
 const DEFAULT_REGION = {

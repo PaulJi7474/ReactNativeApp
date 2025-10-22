@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -33,6 +34,10 @@ export default function FormScreen() {
   const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const [isRequired, setIsRequired] = useState(false);
   const [storesNumericValues, setStoresNumericValues] = useState(false);
+  const [recordNote, setRecordNote] = useState("");
+  const [recordLocation, setRecordLocation] = useState(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const FIELD_TYPE_OPTIONS = [
     "Single Line Text",
@@ -41,6 +46,44 @@ export default function FormScreen() {
     "Location",
     "Image/Photo",
   ]
+
+  useEffect(() => {
+    if (fieldType !== "Location") {
+      setRecordLocation(null);
+      setIsRequestingLocation(false);
+      setLocationError("");
+    }
+  }, [fieldType]);
+
+  const handleLocationPress = async () => {
+    if (isRequestingLocation) {
+      return;
+    }
+
+    try {
+      setIsRequestingLocation(true);
+      setLocationError("");
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        setLocationError("Location permission is required to add your position.");
+        return;
+      }
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const { latitude, longitude } = currentPosition.coords;
+      setRecordLocation({ latitude, longitude });
+    } catch (err) {
+      console.error("Failed to fetch location", err);
+      setLocationError("Unable to get your location. Please try again.");
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -227,8 +270,47 @@ export default function FormScreen() {
           <Text style={styles.sectionTitle}>Add Record Form</Text>
           <View style={styles.noteField}>
             <Text style={styles.fieldLabel}>Note *</Text>
-            <View style={styles.fieldInputPlaceholder} />
+            {fieldType === "Location" ? (
+              <TextInput
+                style={styles.recordInput}
+                placeholder="Add a note"
+                placeholderTextColor="#94A3B8"
+                value={recordNote}
+                onChangeText={setRecordNote}
+                multiline
+              />
+            ) : (
+              <View style={styles.fieldInputPlaceholder} />
+            )}
           </View>
+          {fieldType === "Location" ? (
+            <View style={styles.locationField}>
+              <TouchableOpacity
+                style={styles.locationButton}
+                accessibilityRole="button"
+                onPress={handleLocationPress}
+                disabled={isRequestingLocation}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={colors.blue}
+                  style={styles.locationIcon}
+                />
+                <Text style={styles.locationButtonText}>Location (* Required)</Text>
+                {isRequestingLocation ? (
+                  <ActivityIndicator size="small" color={colors.blue} />
+                ) : null}
+              </TouchableOpacity>
+              {recordLocation ? (
+                <Text style={styles.locationInfoText}>
+                  Lat: {recordLocation.latitude.toFixed(6)}, Lng: {recordLocation.longitude.toFixed(6)}
+                </Text>
+              ) : locationError ? (
+                <Text style={styles.locationErrorText}>{locationError}</Text>
+              ) : null}
+            </View>
+          ) : null}
           <TouchableOpacity style={styles.primaryButton}>
             {/* <Ionicons
               name="add"
@@ -369,6 +451,11 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     backgroundColor: colors.inputMutedBackground,
   },
+  recordInput: {
+    ...sharedStyles.input,
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
   primaryButton: {
     ...sharedStyles.primaryButton,
   },
@@ -398,5 +485,36 @@ const styles = StyleSheet.create({
     color: colors.red,
     fontSize: 14,
     textAlign: "center",
+  },
+  locationField: {
+    gap: 8,
+    marginTop: 8,
+  },
+  locationButton: {
+    borderWidth: 1,
+    borderColor: colors.blue,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  locationButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.blue,
+    flex: 1,
+  },
+  locationIcon: {
+    marginRight: 4,
+  },
+  locationInfoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  locationErrorText: {
+    fontSize: 13,
+    color: colors.red,
   },
 });
