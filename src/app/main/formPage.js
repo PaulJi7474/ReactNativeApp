@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -38,6 +39,9 @@ export default function FormScreen() {
   const [recordLocation, setRecordLocation] = useState(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [recordPhoto, setRecordPhoto] = useState(null);
+  const [photoError, setPhotoError] = useState("");
+  const [isSelectingPhoto, setIsSelectingPhoto] = useState(false);
 
   const FIELD_TYPE_OPTIONS = [
     "Single Line Text",
@@ -52,6 +56,11 @@ export default function FormScreen() {
       setRecordLocation(null);
       setIsRequestingLocation(false);
       setLocationError("");
+    }
+    if (fieldType !== "Image/Photo") {
+      setRecordPhoto(null);
+      setPhotoError("");
+      setIsSelectingPhoto(false);
     }
   }, [fieldType]);
 
@@ -82,6 +91,40 @@ export default function FormScreen() {
       setLocationError("Unable to get your location. Please try again.");
     } finally {
       setIsRequestingLocation(false);
+    }
+  };
+
+  const handleSelectPhotoPress = async () => {
+    if (isSelectingPhoto) {
+      return;
+    }
+
+    try {
+      setIsSelectingPhoto(true);
+      setPhotoError("");
+
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
+        setPhotoError("Photo permission is required to add an image.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        setRecordPhoto(result.assets[0]);
+      }
+    } catch (err) {
+      console.error("Failed to select photo", err);
+      setPhotoError("Unable to pick a photo. Please try again.");
+    } finally {
+      setIsSelectingPhoto(false);
     }
   };
 
@@ -299,6 +342,15 @@ export default function FormScreen() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
+            ) : fieldType === "Image/Photo" ? (
+              <TextInput
+                style={[styles.recordInput, styles.recordInputSingleLine]}
+                placeholder="Add a note"
+                placeholderTextColor="#94A3B8"
+                value={recordNote}
+                onChangeText={setRecordNote}
+                multiline={false}
+              />
             ) : (
               <View style={styles.fieldInputPlaceholder} />
             )}
@@ -328,6 +380,33 @@ export default function FormScreen() {
                 </Text>
               ) : locationError ? (
                 <Text style={styles.locationErrorText}>{locationError}</Text>
+              ) : null}
+            </View>
+          ) : fieldType === "Image/Photo" ? (
+            <View style={styles.photoField}>
+              <TouchableOpacity
+                style={styles.photoButton}
+                accessibilityRole="button"
+                onPress={handleSelectPhotoPress}
+                disabled={isSelectingPhoto}
+              >
+                <Ionicons
+                  name="image-outline"
+                  size={18}
+                  color={colors.blue}
+                  style={styles.photoIcon}
+                />
+                <Text style={styles.photoButtonText}>Photo (* Required)</Text>
+                {isSelectingPhoto ? (
+                  <ActivityIndicator size="small" color={colors.blue} />
+                ) : null}
+              </TouchableOpacity>
+              {recordPhoto ? (
+                <Text style={styles.photoInfoText} numberOfLines={1}>
+                  {recordPhoto.fileName ?? recordPhoto.uri}
+                </Text>
+              ) : photoError ? (
+                <Text style={styles.photoErrorText}>{photoError}</Text>
               ) : null}
             </View>
           ) : null}
@@ -539,6 +618,37 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   locationErrorText: {
+    fontSize: 13,
+    color: colors.red,
+  },
+  photoField: {
+    gap: 8,
+    marginTop: 8,
+  },
+  photoButton: {
+    borderWidth: 1,
+    borderColor: colors.blue,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  photoButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.blue,
+    flex: 1,
+  },
+  photoIcon: {
+    marginRight: 4,
+  },
+  photoInfoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  photoErrorText: {
     fontSize: 13,
     color: colors.red,
   },
