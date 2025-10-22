@@ -81,18 +81,18 @@ export default function MyFormsScreen() {
           accessibilityRole="button"
           onPress={() => router.push("/addForm")}
         >
-          <Ionicons name="add" size={18} color="#FFFFFF" style={styles.addIcon} />
+          <Ionicons name="add" size={18} color="colors.white" style={styles.addIcon} />
           <Text style={styles.addButtonText}>Add Forms</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0A6DFF" />
+          <ActivityIndicator size="large" color="colors.blue" />
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="warning-outline" size={20} color="#B91C1C" />
+          <Ionicons name="warning-outline" size={20} color="colors.red" />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             onPress={loadForms}
@@ -126,7 +126,7 @@ export default function MyFormsScreen() {
                   accessibilityRole="button"
                   onPress={() => navigateToForm(form)}
                 >
-                  <Ionicons name="eye-outline" size={16} color="#0A6DFF" />
+                  <Ionicons name="eye-outline" size={16} color="colors.blue" />
                   <Text style={styles.viewButtonText}>View</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -136,7 +136,7 @@ export default function MyFormsScreen() {
                     router.push({ pathname: "/addForm", params: { formId: form.id } })
                   }
                 >
-                  <Ionicons name="create-outline" size={16} color="#0A6DFF" />
+                  <Ionicons name="create-outline" size={16} color="colors.blue" />
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -146,9 +146,9 @@ export default function MyFormsScreen() {
                   disabled={deletingId === form.id}
                 >
                   {deletingId === form.id ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color="colors.white" />
                   ) : (
-                    <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                    <Ionicons name="trash-outline" size={16} color="colors.white" />
                   )}
                   <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
@@ -164,7 +164,7 @@ export default function MyFormsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "colors.white",
   },
   content: {
     padding: 24,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0A6DFF",
+    backgroundColor: "colors.blue",
     borderRadius: 999,
     paddingVertical: 14,
     shadowColor: "#0F172A",
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "colors.white",
   },
   loadingContainer: {
     paddingVertical: 40,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   formCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "colors.white",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -288,30 +288,30 @@ const styles = StyleSheet.create({
   },
   viewButton: {
     borderWidth: 1,
-    borderColor: "#0A6DFF",
+    borderColor: "colors.blue",
     backgroundColor: "rgba(10, 109, 255, 0.08)",
   },
   editButton: {
     borderWidth: 1,
-    borderColor: "#0A6DFF",
-    backgroundColor: "#FFFFFF",
+    borderColor: "colors.blue",
+    backgroundColor: "colors.white",
   },
   deleteButton: {
     backgroundColor: "#DC2626",
     paddingHorizontal: 18,
   },
   viewButtonText: {
-    color: "#0A6DFF",
+    color: "colors.blue",
     fontSize: 14,
     fontWeight: "600",
   },
   editButtonText: {
-    color: "#0A6DFF",
+    color: "colors.blue",
     fontSize: 14,
     fontWeight: "600",
   },
   deleteButtonText: {
-    color: "#FFFFFF",
+    color: "colors.white",
     fontSize: 14,
     fontWeight: "600",
   },
