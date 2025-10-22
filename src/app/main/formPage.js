@@ -29,8 +29,18 @@ export default function FormScreen() {
   const [error, setError] = useState("");
   const [showFieldForm, setShowFieldForm] = useState(false);
   const [fieldName, setFieldName] = useState("");
+  const [fieldType, setFieldType] = useState("Single Line Text");
+  const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const [isRequired, setIsRequired] = useState(false);
   const [storesNumericValues, setStoresNumericValues] = useState(false);
+
+  const FIELD_TYPE_OPTIONS = [
+    "Single Line Text",
+    "Multi Line Text",
+    "Dropdown",
+    "Location",
+    "Image/Photo",
+  ]
 
   useEffect(() => {
     let isActive = true;
@@ -98,9 +108,7 @@ export default function FormScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setShowFieldForm(false);
-                  setFieldName("");
-                  setIsRequired(false);
-                  setStoresNumericValues(false);
+                  setIsTypeMenuOpen(false);
                 }}
                 style={styles.cancelButton}
               >
@@ -123,10 +131,50 @@ export default function FormScreen() {
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.fieldLabel}>Field type</Text>
-                <View style={styles.dropdownMock}>
-                  <Text style={styles.dropdownText}>Single Line Text</Text>
-                  <Ionicons name="chevron-down" size={18} color="#1E293B" />
-                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setIsTypeMenuOpen((prev) => !prev)}
+                  style={styles.dropdownMock}
+                  accessibilityRole="button"
+                  accessibilityLabel="Field type"
+                >
+                  <Text style={styles.dropdownText}>{fieldType}</Text>
+                  <Ionicons
+                    name={isTypeMenuOpen ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="#1E293B"
+                  />
+                </TouchableOpacity>
+                {isTypeMenuOpen ? (
+                  <View style={styles.dropdownList}>
+                    {FIELD_TYPE_OPTIONS.map((option) => {
+                      const selected = option === fieldType;
+                      return (
+                        <TouchableOpacity
+                          key={option}
+                          onPress={() => {
+                            setFieldType(option);
+                            setIsTypeMenuOpen(false);
+                          }}
+                          style={[
+                            styles.dropdownOption,
+                            selected && styles.dropdownOptionSelected,
+                          ]}
+                          accessibilityRole="button"
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              selected && styles.dropdownOptionTextSelected,
+                            ]}
+                          >
+                            {option}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
               <View style={styles.switchRow}>
                 <Text style={styles.switchLabel}>Required</Text>
@@ -159,7 +207,10 @@ export default function FormScreen() {
           ) : (
             <TouchableOpacity
               style={styles.secondaryButton}
-              onPress={() => setShowFieldForm(true)}
+              onPress={() => {
+                setShowFieldForm(true);
+                setIsTypeMenuOpen(false);
+              }}
             >
               <Ionicons
                 name="add-circle-outline"
@@ -274,6 +325,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textPrimary,
     fontWeight: "500",
+  },
+  dropdownList: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    overflow: "hidden",
+  },
+  dropdownOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dropdownOptionSelected: {
+    backgroundColor: colors.inputMutedBackground,
+  },
+  dropdownOptionText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  dropdownOptionTextSelected: {
+    fontWeight: "600",
+    color: colors.blue,
   },
   switchRow: {
     flexDirection: "row",
