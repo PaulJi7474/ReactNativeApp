@@ -272,12 +272,32 @@ export default function FormScreen() {
             <Text style={styles.fieldLabel}>Note *</Text>
             {fieldType === "Location" ? (
               <TextInput
-                style={styles.recordInput}
+                style={[styles.recordInput, styles.recordInputMultiline]}
                 placeholder="Add a note"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={setRecordNote}
                 multiline
+              />
+            ) : fieldType === "Single Line Text" ? (
+              <TextInput
+                style={[styles.recordInput, styles.recordInputSingleLine]}
+                placeholder="Add a note"
+                placeholderTextColor="#94A3B8"
+                value={recordNote}
+                onChangeText={setRecordNote}
+                multiline={false}
+              />
+            ) : fieldType === "Multi Line Text" ? (
+              <TextInput
+                style={[styles.recordInput, styles.recordInputMultiline]}
+                placeholder="Add a note"
+                placeholderTextColor="#94A3B8"
+                value={recordNote}
+                onChangeText={setRecordNote}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
               />
             ) : (
               <View style={styles.fieldInputPlaceholder} />
@@ -453,6 +473,11 @@ const styles = StyleSheet.create({
   },
   recordInput: {
     ...sharedStyles.input,
+  },
+  recordInputSingleLine: {
+    textAlignVertical: "center",
+  },
+  recordInputMultiline: {
     minHeight: 120,
     textAlignVertical: "top",
   },
@@ -517,4 +542,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.red,
   },
+
 });
