@@ -100,6 +100,7 @@ export default function FormScreen() {
 
       const { latitude, longitude } = currentPosition.coords;
       setRecordLocation({ latitude, longitude });
+      setLocationError("");
     } catch (err) {
       console.error("Failed to fetch location", err);
       setLocationError("Unable to get your location. Please try again.");
@@ -125,7 +126,7 @@ export default function FormScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
@@ -359,6 +360,16 @@ export default function FormScreen() {
       return;
     }
 
+    if (
+      recordFieldType === "Location" &&
+      (!recordLocation ||
+        typeof recordLocation.latitude !== "number" ||
+        typeof recordLocation.longitude !== "number")
+    ) {
+      setLocationError("Please capture your current location to continue.");
+      return;
+    }
+
     try {
       setIsSavingRecord(true);
       setRecordError("");
@@ -382,7 +393,18 @@ export default function FormScreen() {
         ? [...parsedOptions[fieldKey]]
         : [];
 
-      existingOptions.push(trimmedValue);
+      const isLocationField = selectedField.field_type === "Location";
+
+      const valueToStore =
+        isLocationField && recordLocation
+          ? {
+              value: trimmedValue,
+              latitude: recordLocation.latitude,
+              longitude: recordLocation.longitude,
+            }
+          : trimmedValue;
+
+      existingOptions.push(valueToStore);
 
       const nextOptions = {
         ...parsedOptions,
@@ -412,6 +434,11 @@ export default function FormScreen() {
 
       setRecordNote("");
       setRecordError("");
+
+      if (selectedField.field_type === "Location") {
+        setRecordLocation(null);
+        setLocationError("");
+      }
     } catch (err) {
       console.error("Failed to update field options", err);
       Alert.alert(
@@ -1040,6 +1067,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.red,
   },
-
 
 });
