@@ -290,7 +290,6 @@ export default function FormScreen() {
       }, 0);
       const orderIndex = highestOrderIndex + 1;
       const payload = {
-        id: Math.trunc(Date.now() / 1000000),
         form_id: formIdValue,
         name: trimmedName,
         field_type: fieldType,
@@ -1041,5 +1040,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.red,
   },
+
 
 });
