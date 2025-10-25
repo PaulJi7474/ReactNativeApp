@@ -2,7 +2,8 @@ import { useFocusEffect } from "@react-navigation/native";
 // eslint-disable-next-line import/no-unresolved
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 // eslint-disable-next-line import/no-unresolved
 import MapView, { Circle } from "react-native-maps";
 
@@ -108,7 +109,7 @@ export default function MapScreen() {
   const isSearching = hasPermission === true && !userLocation && isLoading;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaProvider style={styles.safeArea}>
       <View style={styles.container}>
         <MapView
           style={styles.map}
@@ -164,7 +165,7 @@ export default function MapScreen() {
           )}
         </View>
       </View>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

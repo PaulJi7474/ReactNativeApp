@@ -101,4 +101,17 @@ export async function updateForm(id, body) {
  */
 export async function deleteForm(id) {
   return apiRequest(`/form?id=eq.${encodeURIComponent(id)}`, "DELETE");
+  }
+
+export async function fetchFieldsByFormId(formId) {
+  if (!formId) {
+    return [];
+  }
+
+  const encodedId = encodeURIComponent(formId);
+  return apiRequest(`/field?form_id=eq.${encodedId}&order=order_index`);
+}
+
+export async function createField(body) {
+  return apiRequest("/field", "POST", body);
 }

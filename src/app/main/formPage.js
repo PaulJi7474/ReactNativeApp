@@ -5,7 +5,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
+  Alert,
   ScrollView,
   StyleSheet,
   Switch,
@@ -14,9 +14,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors, sharedStyles } from "../../style/style";
-import { getFormById } from "../app";
+import {
+  USERNAME,
+  createField,
+  fetchFieldsByFormId,
+  getFormById,
+} from "../app";
 
 const NO_FORM_SELECTED_ERROR = "No form selected.";
 
@@ -35,6 +40,9 @@ export default function FormScreen() {
   const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
   const [isRequired, setIsRequired] = useState(false);
   const [storesNumericValues, setStoresNumericValues] = useState(false);
+  const [fieldNameError, setFieldNameError] = useState("");
+  const [isSavingField, setIsSavingField] = useState(false);
+  const [fields, setFields] = useState([])
   const [recordNote, setRecordNote] = useState("");
   const [recordLocation, setRecordLocation] = useState(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -167,8 +175,116 @@ export default function FormScreen() {
     };
   }, [formId]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadFields = async () => {
+      if (!formId) {
+        return;
+      }
+
+      try {
+        const data = await fetchFieldsByFormId(formId);
+        if (!isActive) {
+          return;
+        }
+
+        if (Array.isArray(data)) {
+          setFields(data);
+        } else if (data) {
+          setFields([data]);
+        } else {
+          setFields([]);
+        }
+      } catch (err) {
+        console.error("Failed to load fields", err);
+        if (isActive) {
+          setFields([]);
+        }
+      }
+    };
+
+    loadFields();
+
+    return () => {
+      isActive = false;
+    };
+  }, [formId]);
+
+  const resetFieldForm = () => {
+    setFieldName("");
+    setFieldType("Single Line Text");
+    setIsRequired(false);
+    setStoresNumericValues(false);
+    setIsTypeMenuOpen(false);
+    setFieldNameError("");
+  };
+
+  const handleSaveField = async () => {
+    if (isSavingField) {
+      return;
+    }
+
+    const trimmedName = fieldName.trim();
+
+    if (!trimmedName) {
+      setFieldNameError("Field name required");
+      return;
+    }
+
+    setFieldNameError("");
+
+    try {
+      setIsSavingField(true);
+      const numericFormId = Number(formId);
+      const formIdValue = Number.isNaN(numericFormId) ? formId : numericFormId;
+      const highestOrderIndex = fields.reduce((max, field) => {
+        const current = Number(field?.order_index);
+        return Number.isFinite(current) && current > max ? current : max;
+      }, 0);
+      const orderIndex = highestOrderIndex + 1;
+      const payload = {
+        id: Math.trunc(Date.now() / 1000000),
+        form_id: formIdValue,
+        name: trimmedName,
+        field_type: fieldType,
+        options: "",
+        required: isRequired ? "yes" : "no",
+        is_num: storesNumericValues ? "yes" : "no",
+        order_index: orderIndex,
+        username: USERNAME,
+      };
+
+      const response = await createField(payload);
+      const createdField = Array.isArray(response) ? response[0] : response;
+
+      if (createdField) {
+        setFields((prev) => {
+          if (prev.length === 0) {
+            return [createdField];
+          }
+
+          const updated = [...prev, createdField];
+          return updated.sort((a, b) => {
+            const aIndex = Number(a?.order_index) || 0;
+            const bIndex = Number(b?.order_index) || 0;
+            return aIndex - bIndex;
+          });
+        });
+      }
+
+      setShowFieldForm(false);
+      resetFieldForm();
+    } catch (err) {
+      console.error("Failed to create field", err);
+      Alert.alert("Error", "We couldn't save that field. Please try again.");
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaProvider  style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -194,7 +310,7 @@ export default function FormScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setShowFieldForm(false);
-                  setIsTypeMenuOpen(false);
+                  resetFieldForm();
                 }}
                 style={styles.cancelButton}
               >
@@ -208,12 +324,23 @@ export default function FormScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.fieldLabel}>Field name</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={[
+                    styles.textInput,
+                    fieldNameError ? styles.inputError : null,
+                  ]}
                   placeholder="Field name"
                   placeholderTextColor="#94A3B8"
                   value={fieldName}
-                  onChangeText={setFieldName}
+                  onChangeText={(value) => {
+                    setFieldName(value);
+                    if (fieldNameError && value.trim()) {
+                      setFieldNameError("");
+                    }
+                  }}
                 />
+                {fieldNameError ? (
+                  <Text style={styles.fieldErrorText}>{fieldNameError}</Text>
+                ) : null}
               </View>
               <View style={styles.inputGroup}>
                 <Text style={styles.fieldLabel}>Field type</Text>
@@ -280,13 +407,25 @@ export default function FormScreen() {
                   thumbColor={colors.white}
                 />
               </View>
-              <TouchableOpacity style={styles.primaryButton}>
-                <Ionicons
-                  name="add"
-                  size={18}
-                  color={colors.white}
-                  style={styles.primaryIcon}
-                />
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  isSavingField && styles.primaryButtonDisabled,
+                ]}
+                accessibilityRole="button"
+                onPress={handleSaveField}
+                disabled={isSavingField}
+              >
+                {isSavingField ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <Ionicons
+                    name="add"
+                    size={18}
+                    color={colors.white}
+                    style={styles.primaryIcon}
+                  />
+                )}
                 <Text style={styles.primaryButtonText}>Save Field</Text>
               </TouchableOpacity>
             </View>
@@ -295,7 +434,7 @@ export default function FormScreen() {
               style={styles.secondaryButton}
               onPress={() => {
                 setShowFieldForm(true);
-                setIsTypeMenuOpen(false);
+                resetFieldForm();
               }}
             >
               <Ionicons
@@ -421,7 +560,7 @@ export default function FormScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaProvider >
   );
 }
 
@@ -496,6 +635,13 @@ const styles = StyleSheet.create({
   textInput: {
     ...sharedStyles.input,
   },
+  inputError: {
+    borderColor: colors.red,
+  },
+  fieldErrorText: {
+    color: colors.red,
+    fontSize: 13,
+  },
   dropdownMock: {
     ...sharedStyles.input,
     flexDirection: "row",
@@ -562,6 +708,9 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     ...sharedStyles.primaryButton,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
   },
   primaryIcon: {
     ...sharedStyles.primaryIcon,

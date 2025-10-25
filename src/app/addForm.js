@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors, sharedStyles } from "../style/style";
 import { createForm, getFormById, updateForm } from "./app";
 
@@ -108,7 +107,7 @@ export default function AddFormScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaProvider style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>{isEditing ? "Edit Form" : "Add Form"}</Text>
 
@@ -178,7 +177,7 @@ export default function AddFormScreen() {
           <Text style={styles.backLinkText}>Back</Text>
         </TouchableOpacity> */}
       </View>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

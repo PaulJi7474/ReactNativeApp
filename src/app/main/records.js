@@ -1,15 +1,16 @@
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RecordsScreen() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaProvider style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>Records</Text>
         <Text style={styles.subtitle}>
           Keep track of submitted entries for your form here.
         </Text>
       </View>
-    </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
