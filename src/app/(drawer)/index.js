@@ -1,3 +1,4 @@
+import { colors } from "@/src/style/style";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -44,7 +45,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.white,
   },
   container: {
     flex: 1,
@@ -63,11 +64,11 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 280,
     aspectRatio: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#1E293B",
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     width: "100%",
     maxWidth: 260,
-    shadowColor: "#1E293B",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   buttonText: {
-    color: "#FFFFFF",
+    color: colors.white,
     fontSize: 16,
     fontWeight: "600",
   },

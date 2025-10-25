@@ -11,7 +11,11 @@ export const colors = {
   destructiveBackground: "#FEE2E2",
   destructiveBorder: "#FECACA",
   red: "#B91C1C", //destructiveText
-  lightRed: "#ca2929ff"
+  lightRed: "#ca2929ff",
+  lightBlue: "#BFDBFE",
+  gray: "#94A3B8",
+  pink: "#EC4899",
+  shadow: "#1E293B",
 };
 
 export const spacing = {

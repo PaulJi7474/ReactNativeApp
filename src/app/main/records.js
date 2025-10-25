@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { colors } from "../../style/style";
 
 export default function RecordsScreen() {
   return (
@@ -17,7 +18,7 @@ export default function RecordsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "colors.white",
+    backgroundColor: colors.white,
   },
   container: {
     flex: 1,
