@@ -21,6 +21,7 @@ import {
   createField,
   fetchFieldsByFormId,
   getFormById,
+  updateField,
 } from "../app";
 
 const NO_FORM_SELECTED_ERROR = "No form selected.";
@@ -42,8 +43,13 @@ export default function FormScreen() {
   const [storesNumericValues, setStoresNumericValues] = useState(false);
   const [fieldNameError, setFieldNameError] = useState("");
   const [isSavingField, setIsSavingField] = useState(false);
-  const [fields, setFields] = useState([])
+  const [fields, setFields] = useState([]);
+  const [recordFieldId, setRecordFieldId] = useState("");
+  const [recordFieldType, setRecordFieldType] = useState("");
+  const [isFieldMenuOpen, setIsFieldMenuOpen] = useState(false);
   const [recordNote, setRecordNote] = useState("");
+  const [recordError, setRecordError] = useState("");
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
   const [recordLocation, setRecordLocation] = useState(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState("");
@@ -57,20 +63,20 @@ export default function FormScreen() {
     "Dropdown",
     "Location",
     "Image/Photo",
-  ]
+  ];
 
   useEffect(() => {
-    if (fieldType !== "Location") {
+    if (recordFieldType !== "Location") {
       setRecordLocation(null);
       setIsRequestingLocation(false);
       setLocationError("");
     }
-    if (fieldType !== "Image/Photo") {
+    if (recordFieldType !== "Image/Photo") {
       setRecordPhoto(null);
       setPhotoError("");
       setIsSelectingPhoto(false);
     }
-  }, [fieldType]);
+  }, [recordFieldType]);
 
   const handleLocationPress = async () => {
     if (isRequestingLocation) {
@@ -220,6 +226,46 @@ export default function FormScreen() {
     setFieldNameError("");
   };
 
+  useEffect(() => {
+    if (!Array.isArray(fields) || fields.length === 0) {
+      setRecordFieldId("");
+      setRecordFieldType("");
+      setIsFieldMenuOpen(false);
+      return;
+    }
+
+    const hasSelectedField = fields.some(
+      (field) => String(field?.id) === String(recordFieldId)
+    );
+
+    if (!hasSelectedField) {
+      const [firstField] = fields;
+      if (firstField) {
+        setRecordFieldId(String(firstField.id));
+        setRecordFieldType(firstField.field_type ?? "");
+        setRecordNote("");
+        setRecordError("");
+      }
+    }
+  }, [fields, recordFieldId]);
+
+  useEffect(() => {
+    if (!recordFieldId) {
+      setRecordFieldType("");
+      return;
+    }
+
+    const nextField = fields.find(
+      (field) => String(field?.id) === String(recordFieldId)
+    );
+
+    setRecordFieldType(nextField?.field_type ?? "");
+  }, [recordFieldId, fields]);
+
+  const selectedRecordField = fields.find(
+    (field) => String(field?.id) === String(recordFieldId)
+  );
+
   const handleSaveField = async () => {
     if (isSavingField) {
       return;
@@ -271,6 +317,11 @@ export default function FormScreen() {
             return aIndex - bIndex;
           });
         });
+        setRecordFieldId(String(createdField.id));
+        setRecordFieldType(createdField.field_type ?? "");
+        setRecordNote("");
+        setRecordError("");
+        setIsFieldMenuOpen(false);
       }
 
       setShowFieldForm(false);
@@ -280,6 +331,96 @@ export default function FormScreen() {
       Alert.alert("Error", "We couldn't save that field. Please try again.");
     } finally {
       setIsSavingField(false);
+    }
+  };
+
+  const handleAddRecord = async () => {
+    if (isSavingRecord) {
+      return;
+    }
+
+    if (!recordFieldId) {
+      setRecordError("Please select a field to update.");
+      return;
+    }
+
+    const selectedField = fields.find(
+      (field) => String(field?.id) === String(recordFieldId)
+    );
+
+    if (!selectedField) {
+      setRecordError("Selected field could not be found.");
+      return;
+    }
+
+    const trimmedValue = recordNote.trim();
+
+    if (!trimmedValue) {
+      setRecordError("Please enter a value to add to this field.");
+      return;
+    }
+
+    try {
+      setIsSavingRecord(true);
+      setRecordError("");
+
+      let parsedOptions = {};
+      const rawOptions = selectedField.options;
+
+      if (typeof rawOptions === "string" && rawOptions.trim()) {
+        try {
+          parsedOptions = JSON.parse(rawOptions);
+        } catch (err) {
+          console.warn("Unable to parse existing field options", err);
+          parsedOptions = {};
+        }
+      } else if (rawOptions && typeof rawOptions === "object") {
+        parsedOptions = { ...rawOptions };
+      }
+
+      const fieldKey = selectedField.name?.trim() || "field";
+      const existingOptions = Array.isArray(parsedOptions[fieldKey])
+        ? [...parsedOptions[fieldKey]]
+        : [];
+
+      existingOptions.push(trimmedValue);
+
+      const nextOptions = {
+        ...parsedOptions,
+        [fieldKey]: existingOptions,
+      };
+
+      const payload = {
+        options: JSON.stringify(nextOptions),
+      };
+
+      const response = await updateField(selectedField.id, payload);
+      const updatedField = Array.isArray(response) ? response[0] : response;
+
+      setFields((prev) =>
+        prev.map((field) => {
+          if (String(field?.id) !== String(selectedField.id)) {
+            return field;
+          }
+
+          if (updatedField) {
+            return { ...field, ...updatedField };
+          }
+
+          return { ...field, options: payload.options };
+        })
+      );
+
+      setRecordNote("");
+      setRecordError("");
+    } catch (err) {
+      console.error("Failed to update field options", err);
+      Alert.alert(
+        "Error",
+        "Unable to add the record right now. Please try again later."
+      );
+    } finally {
+      setIsSavingRecord(false);
     }
   };
 
@@ -450,51 +591,136 @@ export default function FormScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Add Record Form</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.fieldLabel}>Field</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                if (fields.length > 0) {
+                  setIsFieldMenuOpen((prev) => !prev);
+                }
+              }}
+              style={styles.dropdownMock}
+              accessibilityRole="button"
+              accessibilityLabel="Field"
+              disabled={fields.length === 0}
+            >
+              <Text style={styles.dropdownText}>
+                {selectedRecordField?.name
+                  ? selectedRecordField.name
+                  : fields.length === 0
+                  ? "No fields available"
+                  : "Select a field"}
+              </Text>
+              <Ionicons
+                name={isFieldMenuOpen ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#1E293B"
+              />
+            </TouchableOpacity>
+            {isFieldMenuOpen ? (
+              <View style={styles.dropdownList}>
+                {fields.map((field) => {
+                  const selected =
+                    String(field?.id) === String(selectedRecordField?.id);
+                  return (
+                    <TouchableOpacity
+                      key={field.id}
+                      onPress={() => {
+                        setRecordFieldId(String(field.id));
+                        setRecordFieldType(field.field_type ?? "");
+                        setIsFieldMenuOpen(false);
+                        setRecordNote("");
+                        setRecordError("");
+                      }}
+                      style={[
+                        styles.dropdownOption,
+                        selected && styles.dropdownOptionSelected,
+                      ]}
+                      accessibilityRole="button"
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          selected && styles.dropdownOptionTextSelected,
+                        ]}
+                      >
+                        {field.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
           <View style={styles.noteField}>
-            <Text style={styles.fieldLabel}>Note *</Text>
-            {fieldType === "Location" ? (
+            <Text style={styles.fieldLabel}>Value *</Text>
+            {recordFieldType === "Location" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputMultiline]}
-                placeholder="Add a note"
+                placeholder="Enter a value"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
-                onChangeText={setRecordNote}
+                onChangeText={(value) => {
+                  setRecordNote(value);
+                  if (recordError && value.trim()) {
+                    setRecordError("");
+                  }
+                }}
                 multiline
               />
-            ) : fieldType === "Single Line Text" ? (
+            ) : recordFieldType === "Single Line Text" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputSingleLine]}
-                placeholder="Add a note"
+                placeholder="Enter a value"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
-                onChangeText={setRecordNote}
+                onChangeText={(value) => {
+                  setRecordNote(value);
+                  if (recordError && value.trim()) {
+                    setRecordError("");
+                  }
+                }}
                 multiline={false}
               />
-            ) : fieldType === "Multi Line Text" ? (
+            ) : recordFieldType === "Multi Line Text" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputMultiline]}
-                placeholder="Add a note"
+                placeholder="Enter a value"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
-                onChangeText={setRecordNote}
+                onChangeText={(value) => {
+                  setRecordNote(value);
+                  if (recordError && value.trim()) {
+                    setRecordError("");
+                  }
+                }}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
               />
-            ) : fieldType === "Image/Photo" ? (
+            ) : recordFieldType === "Image/Photo" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputSingleLine]}
-                placeholder="Add a note"
+                placeholder="Enter a value"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
-                onChangeText={setRecordNote}
+                onChangeText={(value) => {
+                  setRecordNote(value);
+                  if (recordError && value.trim()) {
+                    setRecordError("");
+                  }
+                }}
                 multiline={false}
               />
             ) : (
               <View style={styles.fieldInputPlaceholder} />
             )}
+            {recordError ? (
+              <Text style={styles.fieldErrorText}>{recordError}</Text>
+            ) : null}
           </View>
-          {fieldType === "Location" ? (
+          {recordFieldType === "Location" ? (
             <View style={styles.locationField}>
               <TouchableOpacity
                 style={styles.locationButton}
@@ -521,7 +747,7 @@ export default function FormScreen() {
                 <Text style={styles.locationErrorText}>{locationError}</Text>
               ) : null}
             </View>
-          ) : fieldType === "Image/Photo" ? (
+          ) : recordFieldType === "Image/Photo" ? (
             <View style={styles.photoField}>
               <TouchableOpacity
                 style={styles.photoButton}
@@ -549,14 +775,28 @@ export default function FormScreen() {
               ) : null}
             </View>
           ) : null}
-          <TouchableOpacity style={styles.primaryButton}>
-            {/* <Ionicons
-              name="add"
-              size={18}
-              color={colors.white}
-              style={styles.primaryIcon}
-            /> */}
-            <Text style={styles.primaryButtonText}>Add Record</Text>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              (isSavingRecord || !recordFieldId) && styles.primaryButtonDisabled,
+            ]}
+            accessibilityRole="button"
+            onPress={handleAddRecord}
+            disabled={isSavingRecord || !recordFieldId}
+          >
+            {isSavingRecord ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <>
+                <Ionicons
+                  name="add"
+                  size={18}
+                  color={colors.white}
+                  style={styles.primaryIcon}
+                />
+                <Text style={styles.primaryButtonText}>Add Record</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

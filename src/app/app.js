@@ -115,3 +115,8 @@ export async function fetchFieldsByFormId(formId) {
 export async function createField(body) {
   return apiRequest("/field", "POST", body);
 }
+
+export async function updateField(id, body) {
+  const encodedId = encodeURIComponent(id);
+  return apiRequest(`/field?id=eq.${encodedId}`, "PATCH", body);
+}
