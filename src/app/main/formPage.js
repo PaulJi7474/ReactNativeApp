@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
@@ -25,6 +26,65 @@ import {
 } from "../app";
 
 const NO_FORM_SELECTED_ERROR = "No form selected.";
+
+// eslint-disable-next-line import/namespace
+const documentDirectory = FileSystem.documentDirectory;
+const IMAGE_DIRECTORY = documentDirectory
+  ? `${documentDirectory}ReactNativeApp/`
+  : null;
+
+async function ensureImageDirectoryExists() {
+  if (!IMAGE_DIRECTORY) {
+    throw new Error("Local image directory is not available on this platform.");
+  }
+
+  const info = await FileSystem.getInfoAsync(IMAGE_DIRECTORY);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(IMAGE_DIRECTORY, {
+      intermediates: true,
+    });
+  }
+}
+
+async function savePhotoToInternalStorage(asset) {
+  if (!asset?.uri) {
+    throw new Error("Invalid photo asset provided.");
+  }
+
+  if (!IMAGE_DIRECTORY) {
+    throw new Error("Local storage directory unavailable for saving images.");
+  }
+
+  await ensureImageDirectoryExists();
+
+  const timestamp = Date.now();
+  const originalName = typeof asset.fileName === "string" ? asset.fileName : "";
+  const trimmedName = originalName.trim();
+  const nameWithoutExtension = trimmedName
+    ? trimmedName.replace(/\.[^/.]+$/, "")
+    : `image_${timestamp}`;
+  const sanitizedBase = nameWithoutExtension.replace(/[^a-zA-Z0-9_-]/g, "_") || `image_${timestamp}`;
+
+  const extensionMatch = trimmedName.match(/\.([a-zA-Z0-9]+)$/);
+  const extension = extensionMatch ? extensionMatch[1] : "jpg";
+
+  const fileName = `${sanitizedBase}_${timestamp}.${extension}`;
+  const destinationUri = `${IMAGE_DIRECTORY}${fileName}`;
+
+  try {
+    const existing = await FileSystem.getInfoAsync(destinationUri);
+    if (existing.exists) {
+      await FileSystem.deleteAsync(destinationUri, { idempotent: true });
+    }
+
+    await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+  } catch (err) {
+    console.error("Failed to save photo locally", err);
+    throw new Error("Unable to save the selected photo locally.");
+  }
+
+  return { fileName, filePath: destinationUri };
+}
 
 export default function FormScreen() {
   const { formId: formIdParam, formName, formDescription } = useLocalSearchParams();
@@ -126,7 +186,7 @@ export default function FormScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
@@ -134,6 +194,7 @@ export default function FormScreen() {
 
       if (!result.canceled && result.assets?.length) {
         setRecordPhoto(result.assets[0]);
+        setPhotoError("");
       }
     } catch (err) {
       console.error("Failed to select photo", err);
@@ -354,19 +415,26 @@ export default function FormScreen() {
     }
 
     const trimmedValue = recordNote.trim();
+    const isImageField = selectedField.field_type === "Image/Photo";
+    const isLocationField = selectedField.field_type === "Location";
 
-    if (!trimmedValue) {
+    if (!isImageField && !trimmedValue) {
       setRecordError("Please enter a value to add to this field.");
       return;
     }
 
     if (
-      recordFieldType === "Location" &&
+      isLocationField &&
       (!recordLocation ||
         typeof recordLocation.latitude !== "number" ||
         typeof recordLocation.longitude !== "number")
     ) {
       setLocationError("Please capture your current location to continue.");
+      return;
+    }
+
+    if (isImageField && !recordPhoto) {
+      setPhotoError("Please select a photo to continue.");
       return;
     }
 
@@ -393,16 +461,23 @@ export default function FormScreen() {
         ? [...parsedOptions[fieldKey]]
         : [];
 
-      const isLocationField = selectedField.field_type === "Location";
+      let valueToStore = trimmedValue;
 
-      const valueToStore =
-        isLocationField && recordLocation
-          ? {
-              value: trimmedValue,
-              latitude: recordLocation.latitude,
-              longitude: recordLocation.longitude,
-            }
-          : trimmedValue;
+      if (isLocationField && recordLocation) {
+        valueToStore = {
+          value: trimmedValue,
+          latitude: recordLocation.latitude,
+          longitude: recordLocation.longitude,
+        };
+      } else if (isImageField && recordPhoto) {
+        const savedPhoto = await savePhotoToInternalStorage(recordPhoto);
+        valueToStore = {
+          type: "image",
+          value: trimmedValue,
+          fileName: savedPhoto.fileName,
+          filePath: savedPhoto.filePath,
+        };
+      }
 
       existingOptions.push(valueToStore);
 
@@ -439,8 +514,18 @@ export default function FormScreen() {
         setRecordLocation(null);
         setLocationError("");
       }
+
+      if (selectedField.field_type === "Image/Photo") {
+        setRecordPhoto(null);
+        setPhotoError("");
+      }
     } catch (err) {
       console.error("Failed to update field options", err);
+      if (isImageField) {
+        setPhotoError(
+          err?.message ?? "Unable to save the selected photo. Please try again."
+        );
+      }
       Alert.alert(
         "Error",
         "Unable to add the record right now. Please try again later."
@@ -684,7 +769,7 @@ export default function FormScreen() {
             {recordFieldType === "Location" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputMultiline]}
-                placeholder="Enter a value"
+                placeholder="Enter a caption (optional)"
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={(value) => {
