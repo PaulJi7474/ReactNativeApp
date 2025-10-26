@@ -2,6 +2,8 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,15 +11,23 @@ import {
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import * as Clipboard from "expo-clipboard";
 import { colors, radii, sharedStyles, spacing } from "../../style/style";
-import { USERNAME, fetchFieldsByFormId } from "../app";
+
+import { USERNAME, fetchFieldsByFormId, updateField } from "../app";
 
 function normaliseFieldValues(field) {
   if (!field) {
-    return { values: [], fieldName: "", fieldType: "", username: "" };
+    return {
+      values: [],
+      fieldId: null,
+      fieldName: "",
+      fieldType: "",
+      username: "",
+    };
   }
 
-  const { name, field_type: fieldType, username, options } = field;
+  const { id: fieldId, name, field_type: fieldType, username, options } = field;
   let parsedOptions = {};
 
   if (typeof options === "string" && options.trim()) {
@@ -43,6 +53,7 @@ function normaliseFieldValues(field) {
 
   return {
     values,
+    fieldId: fieldId ?? null,
     fieldName: name || "Field",
     fieldType: fieldType || "",
     username: username || "",
@@ -87,52 +98,120 @@ function formatFieldValue(value) {
   return String(value);
 }
 
+function getRecordIdentifierFromValue(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const possibleKeys = ["record_id", "recordId", "id"];
+
+  for (const key of possibleKeys) {
+    const candidate = value[key];
+    if (candidate !== undefined && candidate !== null) {
+      const text = String(candidate).trim();
+      if (text) {
+        return text;
+      }
+    }
+  }
+
+  return null;
+}
+
 function buildRecordEntries(fields) {
   if (!Array.isArray(fields) || fields.length === 0) {
     return [];
   }
 
   const normalised = fields.map(normaliseFieldValues);
-  const maxLength = normalised.reduce(
-    (largest, field) => Math.max(largest, field.values.length),
-    0
-  );
-
-  if (maxLength === 0) {
-    return [];
-  }
-
   const derivedUsername =
     normalised.find((item) => item.username)?.username || USERNAME || "";
 
   const records = [];
 
-  for (let index = 0; index < maxLength; index += 1) {
-    const entries = normalised
-      .map(({ fieldName, fieldType, values }) => {
-        if (index >= values.length) {
-          return null;
+  normalised.forEach(
+    ({ fieldId, fieldName, fieldType, username, values }, fieldIndex) => {
+      values.forEach((rawValue, valueIndex) => {
+        if (rawValue === undefined || rawValue === null || rawValue === "") {
+          return;
         }
 
-        const value = values[index];
-        if (value === undefined || value === null || value === "") {
-          return null;
+        const formattedValue = formatFieldValue(rawValue);
+        if (!formattedValue && formattedValue !== "0") {
+          return;
         }
 
-        return {
+        const recordId = getRecordIdentifierFromValue(rawValue);
+        const keyParts = [
+          fieldId !== undefined && fieldId !== null
+            ? `field-${fieldId}`
+            : `fieldIndex-${fieldIndex}`,
+          `value-${valueIndex}`,
+        ];
+
+        if (recordId) {
+          keyParts.push(`record-${recordId}`);
+        }
+
+        records.push({
+          id: keyParts.join("-"),
+          fieldId: fieldId ?? null,
           fieldName,
           fieldType,
-          value: formatFieldValue(value),
-        };
-      })
-      .filter(Boolean);
+          recordId: recordId || null,
+          username: username || derivedUsername,
+          value: formattedValue,
+          valueIndex,
+        });
+      });
+    }
+  );
 
-    if (entries.length > 0) {
-      records.push({ id: index, entries, username: derivedUsername });
+  return records;
+}
+
+function parseFieldOptions(rawOptions) {
+  if (typeof rawOptions === "string" && rawOptions.trim()) {
+    try {
+      return JSON.parse(rawOptions);
+    } catch (err) {
+      console.warn("Unable to parse field options", err);
+      return {};
     }
   }
 
-  return records;
+  if (rawOptions && typeof rawOptions === "object") {
+    return { ...rawOptions };
+  }
+
+  return {};
+}
+
+function getEditableFieldValues(field) {
+  const optionsObject = parseFieldOptions(field?.options);
+  const fallbackKey = field?.name?.trim() || "field";
+
+  let selectedKey = fallbackKey;
+  let values = Array.isArray(optionsObject[selectedKey])
+    ? [...optionsObject[selectedKey]]
+    : null;
+
+  if (!values) {
+    const firstEntry = Object.entries(optionsObject).find(([, value]) =>
+      Array.isArray(value)
+    );
+
+    if (firstEntry) {
+      selectedKey = firstEntry[0];
+      values = [...firstEntry[1]];
+    }
+  }
+
+  if (!values) {
+    values = [];
+  }
+
+  return { optionsObject, selectedKey, values };
 }
 
 export default function RecordsScreen() {
@@ -142,6 +221,7 @@ export default function RecordsScreen() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [deletingRecordId, setDeletingRecordId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -191,6 +271,137 @@ export default function RecordsScreen() {
     ? `Records – ${Array.isArray(formName) ? formName[0] : formName}`
     : "Records";
 
+  const handleCopyRecord = async (record) => {
+    try {
+      const parts = [];
+
+      if (record?.recordId) {
+        parts.push(`Record ID: ${record.recordId}`);
+      }
+
+      if (record?.fieldName) {
+        parts.push(`Field Name: ${record.fieldName}`);
+      }
+
+      if (record?.fieldType) {
+        parts.push(`Field Type: ${record.fieldType}`);
+      }
+
+      if (record?.username) {
+        parts.push(`Username: ${record.username}`);
+      }
+
+      if (record?.value || record?.value === "0") {
+        parts.push(`Value: ${record.value}`);
+      }
+
+      const formatted = parts.join("\n");
+
+      await Clipboard.setStringAsync(formatted);
+      Alert.alert("Copied", "Record copied to clipboard.");
+    } catch (err) {
+      console.error("Failed to copy record", err);
+      Alert.alert("Error", "We couldn't copy that record. Please try again later.");
+    }
+  };
+
+  const performDeleteRecord = async (record) => {
+    const recordKey = record?.id;
+
+    if (!record || !recordKey) {
+      Alert.alert(
+        "Error",
+        "We couldn't identify that record. Please try again later."
+      );
+      return;
+    }
+
+    if (record.fieldId === null || record.fieldId === undefined) {
+      Alert.alert(
+        "Error",
+        "We couldn't match this record to a field. Please try again later."
+      );
+      return;
+    }
+
+    setDeletingRecordId(recordKey);
+
+    try {
+      const field = fields.find(
+        (item) => String(item?.id) === String(record.fieldId)
+      );
+
+      if (!field) {
+        throw new Error("Field not found for the selected record.");
+      }
+
+      const { optionsObject, selectedKey, values } =
+        getEditableFieldValues(field);
+
+      const valueIndex = record.valueIndex;
+
+      if (typeof valueIndex !== "number" || valueIndex < 0) {
+        throw new Error("Invalid index for the selected record.");
+      }
+
+      if (valueIndex >= values.length) {
+        throw new Error("The record is no longer available.");
+      }
+
+      const nextValues = [...values];
+      nextValues.splice(valueIndex, 1);
+
+      const nextOptions = {
+        ...optionsObject,
+        [selectedKey]: nextValues,
+      };
+
+      const optionsJson = JSON.stringify(nextOptions);
+      const response = await updateField(field.id, { options: optionsJson });
+      const updatedField = Array.isArray(response) ? response[0] : response;
+
+      setFields((prev) =>
+        prev.map((item) => {
+          if (String(item.id) !== String(field.id)) {
+            return item;
+          }
+
+          if (updatedField && Object.keys(updatedField).length > 0) {
+            return { ...item, ...updatedField };
+          }
+
+          return { ...item, options: optionsJson };
+        })
+      );
+    } catch (err) {
+      console.error("Failed to delete record", err);
+      Alert.alert(
+        "Error",
+        "We couldn't delete that record. Please try again later."
+      );
+    } finally {
+      setDeletingRecordId(null);
+    }
+  };
+
+  const confirmDeleteRecord = (record) => {
+    const descriptor =
+      record?.recordId || record?.fieldName || "this record";
+
+    Alert.alert(
+      "Delete Record",
+      `Are you sure you want to delete ${descriptor}? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => performDeleteRecord(record),
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaProvider style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -221,25 +432,62 @@ export default function RecordsScreen() {
           <View style={styles.list}>
             {records.map((record, index) => (
               <View key={record.id ?? index} style={styles.recordCard}>
-                <View style={styles.recordHeader}>
-                  <Text style={styles.recordTitle}>Record {index + 1}</Text>
-                  {record.username ? (
-                    <Text style={styles.recordUsername}>{record.username}</Text>
+
+                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                  {/* {record.fieldName ? (
+                    <Text style={styles.textInCardBold}>{record.fieldName}: </Text>
+                  ) : null} */}
+                  <Text style={styles.textInCardBold}>Name: </Text>
+
+                  {record.fieldType ? (
+                    <Text style={styles.recordFieldValue}>{record.fieldType}</Text>
                   ) : null}
-                </View>
-                <View style={styles.recordBody}>
-                  {record.entries.map((entry) => (
-                    <View
-                      key={`${entry.fieldName}-${entry.value}`}
-                      style={styles.recordField}
-                    >
-                      <Text style={styles.recordFieldName}>{entry.fieldName}</Text>
-                      <Text style={styles.recordFieldValue}>
-                        {entry.fieldType ? `${entry.fieldType}: ` : ""}
-                        {entry.value}
-                      </Text>
-                    </View>
-                  ))}
+                </Text>
+
+                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                  <Text style={styles.textInCardBold}>Value: </Text>
+                  {record.value ? (
+                    <Text style={styles.recordFieldValue}>{record.value}</Text>
+                  ) : null}
+                </Text>
+
+                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                  <Text style={styles.textInCardBold}>Publisher: </Text>
+                  {record.username ? (
+                    <Text style={styles.recordFieldValue}>{record.username}</Text>
+                  ) : null}
+                </Text>
+                
+                <View style={styles.recordActions}>
+                  <Pressable
+                    accessibilityHint="Copies the record details to the clipboard"
+                    onPress={() => handleCopyRecord(record)}
+                    style={styles.copyButton}
+                  >
+                    <Text style={styles.copyButtonText}>Copy</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityHint="Deletes this record"
+                    disabled={
+                      deletingRecordId === record.id ||
+                      record.fieldId === null ||
+                      record.fieldId === undefined
+                    }
+                    onPress={() => confirmDeleteRecord(record)}
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      pressed && styles.actionButtonPressed,
+                      deletingRecordId === record.id && styles.actionButtonDisabled,
+                      (record.fieldId === null || record.fieldId === undefined) &&
+                        styles.actionButtonDisabled,
+                    ]}
+                  >
+                    {deletingRecordId === record.id ? (
+                      <ActivityIndicator color={colors.red} size="small" />
+                    ) : (
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    )}
+                  </Pressable>
                 </View>
               </View>
             ))}
@@ -290,40 +538,57 @@ const styles = StyleSheet.create({
   },
   recordCard: {
     ...sharedStyles.card,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  recordHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  recordTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-  },
-  recordUsername: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.blue,
-  },
-  recordBody: {
-    gap: spacing.md,
-  },
-  recordField: {
-    backgroundColor: colors.backgroundMuted,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    gap: 4,
-  },
-  recordFieldName: {
+  textInCardBold: {
     fontSize: 14,
     fontWeight: "600",
     color: colors.textPrimary,
   },
   recordFieldValue: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textPrimary,
     lineHeight: 20,
+  },
+  recordActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.md,
+  },
+  copyButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.blue,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  copyButtonText: {
+    color: colors.blue,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deleteButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.pill,
+    backgroundColor: colors.red,
+    borderWidth: 1,
+    borderColor: colors.red,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  actionButtonPressed: {
+    opacity: 0.85,
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
 });
