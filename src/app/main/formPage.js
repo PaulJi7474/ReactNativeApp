@@ -51,12 +51,6 @@ async function savePhotoToInternalStorage(asset) {
     throw new Error("Invalid photo asset provided.");
   }
 
-  if (!IMAGE_DIRECTORY) {
-    throw new Error("Local storage directory unavailable for saving images.");
-  }
-
-  await ensureImageDirectoryExists();
-
   const timestamp = Date.now();
   const originalName = typeof asset.fileName === "string" ? asset.fileName : "";
   const trimmedName = originalName.trim();
@@ -69,6 +63,16 @@ async function savePhotoToInternalStorage(asset) {
   const extension = extensionMatch ? extensionMatch[1] : "jpg";
 
   const fileName = `${sanitizedBase}_${timestamp}.${extension}`;
+
+  if (!IMAGE_DIRECTORY) {
+    console.warn(
+      "Document directory unavailable; using temporary cache path for image storage."
+    );
+    return { fileName, filePath: asset.uri, isTemporary: true };
+  }
+
+  await ensureImageDirectoryExists();
+
   const destinationUri = `${IMAGE_DIRECTORY}${fileName}`;
 
   try {

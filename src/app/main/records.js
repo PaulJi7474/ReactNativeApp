@@ -491,32 +491,14 @@ export default function RecordsScreen() {
                     ) : null}
                   </Text>
 
-                  <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
-                    <Text style={styles.textInCardBold}>
-                      {isImageRecord ? "File: " : "Value: "}
-                    </Text>
-                    {record.value ? (
-                      <Text style={styles.recordFieldValue}>{record.value}</Text>
-                    ) : null}
-                  </Text>
-
                   {isImageRecord &&
                   record.rawValue &&
                   typeof record.rawValue.value === "string" &&
                   record.rawValue.value.trim() ? (
                     <Text style={styles.line} numberOfLines={2} ellipsizeMode="tail">
-                      <Text style={styles.textInCardBold}>Caption: </Text>
+                      <Text style={styles.textInCardBold}>Text: </Text>
                       <Text style={styles.recordFieldValue}>
                         {record.rawValue.value}
-                      </Text>
-                    </Text>
-                  ) : null}
-
-                  {hasImagePath ? (
-                    <Text style={styles.line} numberOfLines={2} ellipsizeMode="middle">
-                      <Text style={styles.textInCardBold}>Path: </Text>
-                      <Text style={styles.recordFieldValue}>
-                        {record.rawValue.filePath}
                       </Text>
                     </Text>
                   ) : null}
