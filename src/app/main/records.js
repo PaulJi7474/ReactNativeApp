@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+// eslint-disable-next-line import/no-unresolved
 import * as Clipboard from "expo-clipboard";
 import { colors, radii, sharedStyles, spacing } from "../../style/style";
 
@@ -66,7 +68,27 @@ function formatFieldValue(value) {
   }
 
   if (typeof value === "object") {
-    const valueText = typeof value.value === "string" ? value.value : "";
+    const caption = typeof value.value === "string" ? value.value : "";
+
+    if (
+      value.type === "image" ||
+      (typeof value.filePath === "string" && value.filePath) ||
+      (typeof value.fileName === "string" && value.fileName)
+    ) {
+      if (typeof value.fileName === "string" && value.fileName.trim()) {
+        return value.fileName.trim();
+      }
+
+      if (typeof value.filePath === "string" && value.filePath.trim()) {
+        return value.filePath.trim();
+      }
+
+      if (caption.trim()) {
+        return caption.trim();
+      }
+
+      return "Image";
+    }
 
     const coordinates = [];
     if (typeof value.latitude === "number") {
@@ -76,16 +98,16 @@ function formatFieldValue(value) {
       coordinates.push(`Lng: ${value.longitude.toFixed(5)}`);
     }
 
-    if (valueText && coordinates.length) {
-      return `${valueText} (${coordinates.join(", ")})`;
+    if (caption && coordinates.length) {
+      return `${caption} (${coordinates.join(", ")})`;
     }
 
     if (coordinates.length) {
       return coordinates.join(", ");
     }
 
-    if (valueText) {
-      return valueText;
+    if (caption) {
+      return caption;
     }
 
     try {
@@ -161,6 +183,7 @@ function buildRecordEntries(fields) {
           recordId: recordId || null,
           username: username || derivedUsername,
           value: formattedValue,
+          rawValue,
           valueIndex,
         });
       });
@@ -290,8 +313,28 @@ export default function RecordsScreen() {
       if (record?.username) {
         parts.push(`Username: ${record.username}`);
       }
+      if (record?.fieldType === "Image/Photo" && record?.rawValue) {
+        if (
+          typeof record.rawValue.fileName === "string" &&
+          record.rawValue.fileName.trim()
+        ) {
+          parts.push(`File Name: ${record.rawValue.fileName}`);
+        }
 
-      if (record?.value || record?.value === "0") {
+        if (
+          typeof record.rawValue.filePath === "string" &&
+          record.rawValue.filePath.trim()
+        ) {
+          parts.push(`File Path: ${record.rawValue.filePath}`);
+        }
+
+        if (
+          typeof record.rawValue.value === "string" &&
+          record.rawValue.value.trim()
+        ) {
+          parts.push(`Caption: ${record.rawValue.value}`);
+        }
+      } else if (record?.value || record?.value === "0") {
         parts.push(`Value: ${record.value}`);
       }
 
@@ -430,67 +473,105 @@ export default function RecordsScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {records.map((record, index) => (
-              <View key={record.id ?? index} style={styles.recordCard}>
+            {records.map((record, index) => {
+              const isImageRecord = record.fieldType === "Image/Photo";
+              const hasImagePath =
+                isImageRecord &&
+                record.rawValue &&
+                typeof record.rawValue.filePath === "string" &&
+                record.rawValue.filePath.trim();
 
-                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
-                  {/* {record.fieldName ? (
-                    <Text style={styles.textInCardBold}>{record.fieldName}: </Text>
-                  ) : null} */}
-                  <Text style={styles.textInCardBold}>Name: </Text>
+              return (
+                <View key={record.id ?? index} style={styles.recordCard}>
+                  <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                    <Text style={styles.textInCardBold}>Name: </Text>
 
-                  {record.fieldType ? (
-                    <Text style={styles.recordFieldValue}>{record.fieldType}</Text>
+                    {record.fieldType ? (
+                      <Text style={styles.recordFieldValue}>{record.fieldType}</Text>
+                    ) : null}
+                  </Text>
+
+                  <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                    <Text style={styles.textInCardBold}>
+                      {isImageRecord ? "File: " : "Value: "}
+                    </Text>
+                    {record.value ? (
+                      <Text style={styles.recordFieldValue}>{record.value}</Text>
+                    ) : null}
+                  </Text>
+
+                  {isImageRecord &&
+                  record.rawValue &&
+                  typeof record.rawValue.value === "string" &&
+                  record.rawValue.value.trim() ? (
+                    <Text style={styles.line} numberOfLines={2} ellipsizeMode="tail">
+                      <Text style={styles.textInCardBold}>Caption: </Text>
+                      <Text style={styles.recordFieldValue}>
+                        {record.rawValue.value}
+                      </Text>
+                    </Text>
                   ) : null}
-                </Text>
 
-                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
-                  <Text style={styles.textInCardBold}>Value: </Text>
-                  {record.value ? (
-                    <Text style={styles.recordFieldValue}>{record.value}</Text>
+                  {hasImagePath ? (
+                    <Text style={styles.line} numberOfLines={2} ellipsizeMode="middle">
+                      <Text style={styles.textInCardBold}>Path: </Text>
+                      <Text style={styles.recordFieldValue}>
+                        {record.rawValue.filePath}
+                      </Text>
+                    </Text>
                   ) : null}
-                </Text>
 
-                <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
-                  <Text style={styles.textInCardBold}>Publisher: </Text>
-                  {record.username ? (
-                    <Text style={styles.recordFieldValue}>{record.username}</Text>
+                  {hasImagePath ? (
+                    <Image
+                      source={{ uri: record.rawValue.filePath }}
+                      style={styles.recordImage}
+                      accessibilityLabel={
+                        record.rawValue.fileName || "Submitted image"
+                      }
+                    />
                   ) : null}
-                </Text>
-                
-                <View style={styles.recordActions}>
-                  <Pressable
-                    accessibilityHint="Copies the record details to the clipboard"
-                    onPress={() => handleCopyRecord(record)}
-                    style={styles.copyButton}
-                  >
-                    <Text style={styles.copyButtonText}>Copy</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityHint="Deletes this record"
-                    disabled={
-                      deletingRecordId === record.id ||
-                      record.fieldId === null ||
-                      record.fieldId === undefined
-                    }
-                    onPress={() => confirmDeleteRecord(record)}
-                    style={({ pressed }) => [
-                      styles.deleteButton,
-                      pressed && styles.actionButtonPressed,
-                      deletingRecordId === record.id && styles.actionButtonDisabled,
-                      (record.fieldId === null || record.fieldId === undefined) &&
-                        styles.actionButtonDisabled,
-                    ]}
-                  >
-                    {deletingRecordId === record.id ? (
-                      <ActivityIndicator color={colors.red} size="small" />
-                    ) : (
-                      <Text style={styles.deleteButtonText}>Delete</Text>
-                    )}
-                  </Pressable>
+
+                  <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
+                    <Text style={styles.textInCardBold}>Publisher: </Text>
+                    {record.username ? (
+                      <Text style={styles.recordFieldValue}>{record.username}</Text>
+                    ) : null}
+                  </Text>
+
+                  <View style={styles.recordActions}>
+                    <Pressable
+                      accessibilityHint="Copies the record details to the clipboard"
+                      onPress={() => handleCopyRecord(record)}
+                      style={styles.copyButton}
+                    >
+                      <Text style={styles.copyButtonText}>Copy</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityHint="Deletes this record"
+                      disabled={
+                        deletingRecordId === record.id ||
+                        record.fieldId === null ||
+                        record.fieldId === undefined
+                      }
+                      onPress={() => confirmDeleteRecord(record)}
+                      style={({ pressed }) => [
+                        styles.deleteButton,
+                        pressed && styles.actionButtonPressed,
+                        deletingRecordId === record.id && styles.actionButtonDisabled,
+                        (record.fieldId === null || record.fieldId === undefined) &&
+                          styles.actionButtonDisabled,
+                      ]}
+                    >
+                      {deletingRecordId === record.id ? (
+                        <ActivityIndicator color={colors.red} size="small" />
+                      ) : (
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -549,6 +630,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
     lineHeight: 20,
+  },
+  recordImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: radii.md,
+    marginTop: spacing.xs,
+    backgroundColor: colors.inputMutedBackground,
   },
   recordActions: {
     flexDirection: "row",
