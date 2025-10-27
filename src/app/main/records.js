@@ -250,6 +250,9 @@ export default function RecordsScreen() {
   const [selectedFieldName, setSelectedFieldName] = useState("All");
   const [appliedFieldName, setAppliedFieldName] = useState("All");
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
+  const [selectedPublisher, setSelectedPublisher] = useState("All");
+  const [appliedPublisher, setAppliedPublisher] = useState("All");
+  const [isPublisherDropdownOpen, setIsPublisherDropdownOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -316,6 +319,25 @@ export default function RecordsScreen() {
     return ["All", ...sorted];
   }, [records]);
 
+  const publisherOptions = useMemo(() => {
+    const uniquePublishers = new Set();
+
+    records.forEach((record) => {
+      if (typeof record.username === "string") {
+        const trimmed = record.username.trim();
+        if (trimmed) {
+          uniquePublishers.add(trimmed);
+        }
+      }
+    });
+
+    const sorted = Array.from(uniquePublishers)
+      .filter((publisher) => publisher !== "All")
+      .sort((a, b) => a.localeCompare(b));
+
+    return ["All", ...sorted];
+  }, [records]);
+
   useEffect(() => {
     if (!fieldNameOptions.includes(selectedFieldName)) {
       setSelectedFieldName("All");
@@ -326,35 +348,69 @@ export default function RecordsScreen() {
     }
   }, [fieldNameOptions, selectedFieldName, appliedFieldName]);
 
-  const filteredRecords = useMemo(() => {
-    if (appliedFieldName === "All") {
-      return records;
+  useEffect(() => {
+    if (!publisherOptions.includes(selectedPublisher)) {
+      setSelectedPublisher("All");
     }
 
-    return records.filter((record) => record.fieldName === appliedFieldName);
-  }, [records, appliedFieldName]);
+    if (!publisherOptions.includes(appliedPublisher)) {
+      setAppliedPublisher("All");
+    }
+  }, [publisherOptions, selectedPublisher, appliedPublisher]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter((record) => {
+      const recordPublisher =
+        typeof record.username === "string" ? record.username.trim() : "";
+
+      const matchesField =
+        appliedFieldName === "All" || record.fieldName === appliedFieldName;
+      const matchesPublisher =
+        appliedPublisher === "All" || recordPublisher === appliedPublisher;
+
+      return matchesField && matchesPublisher;
+    });
+  }, [records, appliedFieldName, appliedPublisher]);
 
   const hasAnyRecords = records.length > 0;
   const recordCount = filteredRecords.length;
-  const isApplyDisabled = selectedFieldName === appliedFieldName;
+  const isApplyDisabled =
+    selectedFieldName === appliedFieldName &&
+    selectedPublisher === appliedPublisher;
 
   const handleApplyFilter = () => {
     if (isApplyDisabled) {
       setIsFieldDropdownOpen(false);
+      setIsPublisherDropdownOpen(false);
       return;
     }
 
     setAppliedFieldName(selectedFieldName);
+    setAppliedPublisher(selectedPublisher);
     setIsFieldDropdownOpen(false);
+    setIsPublisherDropdownOpen(false);
   };
 
   const handleSelectFieldName = (fieldName) => {
     setSelectedFieldName(fieldName);
     setIsFieldDropdownOpen(false);
+    setIsPublisherDropdownOpen(false);
+  };
+
+  const handleSelectPublisher = (publisher) => {
+    setSelectedPublisher(publisher);
+    setIsPublisherDropdownOpen(false);
+    setIsFieldDropdownOpen(false);
   };
 
   const toggleFieldDropdown = () => {
     setIsFieldDropdownOpen((prev) => !prev);
+    setIsPublisherDropdownOpen(false);
+  };
+
+  const togglePublisherDropdown = () => {
+    setIsPublisherDropdownOpen((prev) => !prev);
+    setIsFieldDropdownOpen(false);
   };
 
   const title = formName
@@ -540,9 +596,7 @@ export default function RecordsScreen() {
                 <Text style={styles.dropdownButtonText} numberOfLines={1}>
                   {selectedFieldName}
                 </Text>
-                <Text style={styles.dropdownCaret}>
-                  ▾
-                </Text>
+                <Text style={styles.dropdownCaret}>▾</Text>
               </Pressable>
 
               {isFieldDropdownOpen ? (
@@ -578,8 +632,59 @@ export default function RecordsScreen() {
             </View>
           </View>
 
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Publisher   </Text>
+            <View style={styles.dropdownWrapper}>
+              <Pressable
+                accessibilityLabel="Select a publisher to filter by"
+                accessibilityRole="button"
+                onPress={togglePublisherDropdown}
+                style={({ pressed }) => [
+                  styles.dropdownButton,
+                  pressed && styles.dropdownButtonPressed,
+                ]}
+              >
+                <Text style={styles.dropdownButtonText} numberOfLines={1}>
+                  {selectedPublisher}
+                </Text>
+                <Text style={styles.dropdownCaret}>▾</Text>
+              </Pressable>
+
+              {isPublisherDropdownOpen ? (
+                <View style={styles.dropdownMenu}>
+                  {publisherOptions.map((option) => {
+                    const isSelected = option === selectedPublisher;
+
+                    return (
+                      <Pressable
+                        key={option}
+                        accessibilityRole="button"
+                        onPress={() => handleSelectPublisher(option)}
+                        style={({ pressed }) => [
+                          styles.dropdownOption,
+                          pressed && styles.dropdownOptionPressed,
+                          isSelected && styles.dropdownOptionSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownOptionText,
+                            isSelected && styles.dropdownOptionSelectedText,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {option}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          </View>
+
           <Pressable
-            accessibilityHint="Applies the selected field name filter"
+            accessibilityHint="Applies the selected filters"
             accessibilityRole="button"
             accessibilityState={{ disabled: isApplyDisabled }}
             disabled={isApplyDisabled}
