@@ -245,6 +245,9 @@ export default function RecordsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [deletingRecordId, setDeletingRecordId] = useState(null);
+  const [selectedFieldName, setSelectedFieldName] = useState("All");
+  const [appliedFieldName, setAppliedFieldName] = useState("All");
+  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -288,7 +291,63 @@ export default function RecordsScreen() {
   }, [formId]);
 
   const records = useMemo(() => buildRecordEntries(fields), [fields]);
-  const recordCount = records.length;
+
+  const fieldNameOptions = useMemo(() => {
+    const uniqueNames = new Set();
+
+    records.forEach((record) => {
+      if (typeof record.fieldName === "string" && record.fieldName.trim()) {
+        uniqueNames.add(record.fieldName);
+      }
+    });
+
+    const sorted = Array.from(uniqueNames)
+      .filter((name) => name !== "All")
+      .sort((a, b) => a.localeCompare(b));
+
+    return ["All", ...sorted];
+  }, [records]);
+
+  useEffect(() => {
+    if (!fieldNameOptions.includes(selectedFieldName)) {
+      setSelectedFieldName("All");
+    }
+
+    if (!fieldNameOptions.includes(appliedFieldName)) {
+      setAppliedFieldName("All");
+    }
+  }, [fieldNameOptions, selectedFieldName, appliedFieldName]);
+
+  const filteredRecords = useMemo(() => {
+    if (appliedFieldName === "All") {
+      return records;
+    }
+
+    return records.filter((record) => record.fieldName === appliedFieldName);
+  }, [records, appliedFieldName]);
+
+  const hasAnyRecords = records.length > 0;
+  const recordCount = filteredRecords.length;
+  const isApplyDisabled = selectedFieldName === appliedFieldName;
+
+  const handleApplyFilter = () => {
+    if (isApplyDisabled) {
+      setIsFieldDropdownOpen(false);
+      return;
+    }
+
+    setAppliedFieldName(selectedFieldName);
+    setIsFieldDropdownOpen(false);
+  };
+
+  const handleSelectFieldName = (fieldName) => {
+    setSelectedFieldName(fieldName);
+    setIsFieldDropdownOpen(false);
+  };
+
+  const toggleFieldDropdown = () => {
+    setIsFieldDropdownOpen((prev) => !prev);
+  };
 
   const title = formName
     ? `Records – ${Array.isArray(formName) ? formName[0] : formName}`
@@ -457,6 +516,76 @@ export default function RecordsScreen() {
           ) : null}
         </View>
 
+        <View style={styles.filterCard}>
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Field Name</Text>
+            <View style={styles.dropdownWrapper}>
+              <Pressable
+                accessibilityLabel="Select a field name to filter by"
+                accessibilityRole="button"
+                onPress={toggleFieldDropdown}
+                style={({ pressed }) => [
+                  styles.dropdownButton,
+                  pressed && styles.dropdownButtonPressed,
+                ]}
+              >
+                <Text style={styles.dropdownButtonText} numberOfLines={1}>
+                  {selectedFieldName}
+                </Text>
+                <Text style={styles.dropdownCaret}>
+                  ▾
+                </Text>
+              </Pressable>
+
+              {isFieldDropdownOpen ? (
+                <View style={styles.dropdownMenu}>
+                  {fieldNameOptions.map((option) => {
+                    const isSelected = option === selectedFieldName;
+
+                    return (
+                      <Pressable
+                        key={option}
+                        accessibilityRole="button"
+                        onPress={() => handleSelectFieldName(option)}
+                        style={({ pressed }) => [
+                          styles.dropdownOption,
+                          pressed && styles.dropdownOptionPressed,
+                          isSelected && styles.dropdownOptionSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownOptionText,
+                            isSelected && styles.dropdownOptionSelectedText,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {option}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          <Pressable
+            accessibilityHint="Applies the selected field name filter"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isApplyDisabled }}
+            disabled={isApplyDisabled}
+            onPress={handleApplyFilter}
+            style={({ pressed }) => [
+              styles.applyButton,
+              pressed && !isApplyDisabled && styles.applyButtonPressed,
+              isApplyDisabled && styles.applyButtonDisabled,
+            ]}
+          >
+            <Text style={styles.applyButtonText}>Apply</Text>
+          </Pressable>
+        </View>
+
         {loading ? (
           <View style={styles.feedbackContainer}>
             <ActivityIndicator color={colors.blue} size="large" />
@@ -465,15 +594,21 @@ export default function RecordsScreen() {
           <View style={styles.feedbackContainer}>
             <Text style={styles.feedbackText}>{error}</Text>
           </View>
-        ) : recordCount === 0 ? (
+        ) : !hasAnyRecords ? (
           <View style={styles.feedbackContainer}>
             <Text style={styles.feedbackText}>
               No records have been added to this form yet.
             </Text>
           </View>
+        ) : recordCount === 0 ? (
+          <View style={styles.feedbackContainer}>
+            <Text style={styles.feedbackText}>
+              No records match the selected field.
+            </Text>
+          </View>
         ) : (
           <View style={styles.list}>
-            {records.map((record, index) => {
+            {filteredRecords.map((record, index) => {
               const isImageRecord = record.fieldType === "Image/Photo";
               const hasImagePath =
                 isImageRecord &&
@@ -613,6 +748,90 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: colors.textSecondary,
+  },
+  filterCard: {
+    ...sharedStyles.card,
+    gap: spacing.md,
+  },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  filterLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  dropdownWrapper: {
+    flex: 1,
+  },
+  dropdownButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    gap: spacing.sm,
+  },
+  dropdownButtonPressed: {
+    opacity: 0.85,
+  },
+  dropdownButtonText: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  dropdownCaret: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+  },
+  dropdownMenu: {
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    overflow: "hidden",
+    width: "100%",
+  },
+  dropdownOption: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  dropdownOptionPressed: {
+    backgroundColor: colors.inputMutedBackground,
+  },
+  dropdownOptionSelected: {
+    backgroundColor: colors.lightBlue,
+  },
+  dropdownOptionText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  dropdownOptionSelectedText: {
+    fontWeight: "600",
+  },
+  applyButton: {
+    alignSelf: "flex-start",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radii.pill,
+    backgroundColor: colors.blue,
+  },
+  applyButtonPressed: {
+    opacity: 0.85,
+  },
+  applyButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "600",
   },
   feedbackContainer: {
     ...sharedStyles.card,

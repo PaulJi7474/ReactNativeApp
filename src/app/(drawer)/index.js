@@ -18,7 +18,7 @@ export default function Index() {
 
         <View style={styles.imageCard}>
           <Image
-            source={require("@/assets/images/forms.png")}
+            source={require("../../assets/images/forms.png")}
             style={styles.image}
             resizeMode="contain"
           />
@@ -32,7 +32,7 @@ export default function Index() {
           <Ionicons
             name="document-text-outline"
             size={20}
-            color="#FFFFFF"
+            color={colors.white}
             style={styles.buttonIcon}
           />
           <Text style={styles.buttonText}>Start Building Forms</Text>
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0A6DFF",
+    backgroundColor: colors.blue,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 999,

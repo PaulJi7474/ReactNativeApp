@@ -126,4 +126,9 @@ export const sharedStyles = {
     fontSize: 14,
     fontWeight: "500",
   },
+  rowCenterBetween:{
+  flexDirection: 'row',
+  alignItems: 'center',        
+  justifyContent: 'space-between',
+  },
 };

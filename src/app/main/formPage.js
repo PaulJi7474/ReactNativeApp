@@ -629,9 +629,7 @@ export default function FormScreen() {
         ) : (
           <>
             <Text style={styles.heading}>{form?.name || "Form"}</Text>
-            {form?.description ? (
-              <Text style={styles.subtitle}>{form.description}</Text>
-            ) : null}
+
           </>
         )}
 
@@ -965,7 +963,7 @@ export default function FormScreen() {
                   color={colors.blue}
                   style={styles.photoIcon}
                 />
-                <Text style={styles.photoButtonText}>Photo (* Required)</Text>
+                <Text style={styles.photoButtonText}>Photo</Text>
                 {isSelectingPhoto ? (
                   <ActivityIndicator size="small" color={colors.blue} />
                 ) : null}

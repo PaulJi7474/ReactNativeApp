@@ -5,7 +5,7 @@ export default function AboutScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.heroCard}>
         <Image
-          source={require("@/assets/images/forms.png")}
+          source={require("../../assets/images/forms.png")}
           style={styles.heroImage}
           resizeMode="contain"
         />
