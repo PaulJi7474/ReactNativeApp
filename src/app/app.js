@@ -4,10 +4,10 @@ export const API_BASE_URL = "https://comp2140a3.uqcloud.net/api";
 // JWT token for authorization, replace with your actual token from My Grades in Blackboard
 // From the A2 JSON Web Token column, view Feedback to show your JWT
 // The JWT for A3 is the same as A2
-export const JWT_TOKEN = "..";
+export const JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic3R1ZGVudCIsInVzZXJuYW1lIjoiczQ4NDkxMjMifQ.zloDtPVIpdCxmfBWaTQDJHt6kJHIz3xqY1sfZ4ZYElA";
 
 // Your UQ student username, used for row-level security to retrieve your records
-export const USERNAME = "";
+export const USERNAME = "s4849123";
 
 /**
  * Helper function to handle API requests.

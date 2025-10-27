@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,8 +27,32 @@ import {
 
 const NO_FORM_SELECTED_ERROR = "No form selected.";
 
+function fieldStoresNumericValues(field) {
+  if (!field) {
+    return false;
+  }
+
+  const rawValue =
+    field.is_num ??
+    field.isNum ??
+    field.storesNumericValues ??
+    field.stores_numeric_values ??
+    null;
+
+  if (typeof rawValue === "string") {
+    const normalised = rawValue.trim().toLowerCase();
+    return normalised === "yes" || normalised === "true" || normalised === "1";
+  }
+
+  if (typeof rawValue === "number") {
+    return rawValue === 1;
+  }
+
+  return Boolean(rawValue);
+}
+
 // eslint-disable-next-line import/namespace
-const documentDirectory = FileSystem.documentDirectory;
+const documentDirectory = FileSystem.documentDirectory
 const IMAGE_DIRECTORY = documentDirectory
   ? `${documentDirectory}ReactNativeApp/`
   : null;
@@ -332,6 +356,13 @@ export default function FormScreen() {
     (field) => String(field?.id) === String(recordFieldId)
   );
 
+  const selectedFieldIsNumeric = useMemo(
+    () => fieldStoresNumericValues(selectedRecordField),
+    [selectedRecordField]
+  );
+
+  const recordValueLabel = selectedFieldIsNumeric ? "Value" : "Text";
+
   const handleSaveField = async () => {
     if (isSavingField) {
       return;
@@ -368,22 +399,29 @@ export default function FormScreen() {
 
       const response = await createField(payload);
       const createdField = Array.isArray(response) ? response[0] : response;
+      const fieldWithNumericFlag = createdField
+        ? {
+            ...createdField,
+            is_num:
+              createdField.is_num ?? (storesNumericValues ? "yes" : "no"),
+          }
+        : null;
 
-      if (createdField) {
+      if (fieldWithNumericFlag) {
         setFields((prev) => {
           if (prev.length === 0) {
-            return [createdField];
+            return [fieldWithNumericFlag];
           }
 
-          const updated = [...prev, createdField];
+          const updated = [...prev, fieldWithNumericFlag];
           return updated.sort((a, b) => {
             const aIndex = Number(a?.order_index) || 0;
             const bIndex = Number(b?.order_index) || 0;
             return aIndex - bIndex;
           });
         });
-        setRecordFieldId(String(createdField.id));
-        setRecordFieldType(createdField.field_type ?? "");
+        setRecordFieldId(String(fieldWithNumericFlag.id));
+        setRecordFieldType(fieldWithNumericFlag.field_type ?? "");
         setRecordNote("");
         setRecordError("");
         setIsFieldMenuOpen(false);
@@ -423,7 +461,9 @@ export default function FormScreen() {
     const isLocationField = selectedField.field_type === "Location";
 
     if (!isImageField && !trimmedValue) {
-      setRecordError("Please enter a value to add to this field.");
+      setRecordError(
+        `Please enter a ${selectedFieldIsNumeric ? "value" : "text value"} to add to this field.`
+      );
       return;
     }
 
@@ -769,11 +809,15 @@ export default function FormScreen() {
             ) : null}
           </View>
           <View style={styles.noteField}>
-            <Text style={styles.fieldLabel}>Value *</Text>
+            <Text style={styles.fieldLabel}>{`${recordValueLabel} *`}</Text>
             {recordFieldType === "Location" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputMultiline]}
-                placeholder="Enter a caption (optional)"
+                placeholder={
+                  selectedFieldIsNumeric
+                    ? "Enter a value"
+                    : "Enter a caption (optional)"
+                }
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={(value) => {
@@ -787,7 +831,9 @@ export default function FormScreen() {
             ) : recordFieldType === "Single Line Text" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputSingleLine]}
-                placeholder="Enter a value"
+                placeholder={`Enter a ${
+                  selectedFieldIsNumeric ? "value" : "text value"
+                }`}
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={(value) => {
@@ -797,11 +843,14 @@ export default function FormScreen() {
                   }
                 }}
                 multiline={false}
+                keyboardType={selectedFieldIsNumeric ? "numeric" : "default"}
               />
             ) : recordFieldType === "Multi Line Text" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputMultiline]}
-                placeholder="Enter a value"
+                placeholder={`Enter a ${
+                  selectedFieldIsNumeric ? "value" : "text value"
+                }`}
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={(value) => {
@@ -811,13 +860,16 @@ export default function FormScreen() {
                   }
                 }}
                 multiline
+                keyboardType={selectedFieldIsNumeric ? "numeric" : "default"}
                 numberOfLines={4}
                 textAlignVertical="top"
               />
             ) : recordFieldType === "Image/Photo" ? (
               <TextInput
                 style={[styles.recordInput, styles.recordInputSingleLine]}
-                placeholder="Enter a value"
+                placeholder={`Enter a ${
+                  selectedFieldIsNumeric ? "value" : "text value"
+                }`}
                 placeholderTextColor="#94A3B8"
                 value={recordNote}
                 onChangeText={(value) => {
@@ -827,6 +879,7 @@ export default function FormScreen() {
                   }
                 }}
                 multiline={false}
+                keyboardType={selectedFieldIsNumeric ? "numeric" : "default"}
               />
             ) : (
               <View style={styles.fieldInputPlaceholder} />
