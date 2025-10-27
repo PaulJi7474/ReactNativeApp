@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,7 +13,9 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // eslint-disable-next-line import/no-unresolved
+import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
+
 import { colors, radii, sharedStyles, spacing } from "../../style/style";
 
 import { USERNAME, fetchFieldsByFormId, updateField } from "../app";
@@ -249,46 +251,52 @@ export default function RecordsScreen() {
   const [appliedFieldName, setAppliedFieldName] = useState("All");
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-    const loadFields = async () => {
-      if (!formId) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError("");
-
-        const data = await fetchFieldsByFormId(formId);
-        if (!isMounted) {
+      const load = async () => {
+        if (!formId) {
+          if (isActive) {
+            setFields([]);
+            setLoading(false);
+          }
           return;
         }
 
-        if (Array.isArray(data)) {
-          setFields(data);
-        } else {
-          setFields([]);
+        if (isActive) {
+          setLoading(true);
+          setError("");
         }
-      } catch (err) {
-        console.error("Failed to load fields", err);
-        if (isMounted) {
-          setError("Unable to load records. Please try again later.");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
 
-    loadFields();
+        try {
+          const data = await fetchFieldsByFormId(formId);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [formId]);
+          if (!isActive) {
+            return;
+          }
+
+          setFields(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error("Failed to load fields", err);
+          if (isActive) {
+            setError("Unable to load records. Please try again later.");
+            setFields([]);
+          }
+        } finally {
+          if (isActive) {
+            setLoading(false);
+          }
+        }
+      };
+
+      load();
+
+      return () => {
+        isActive = false;
+      };
+    }, [formId])
+  );
 
   const records = useMemo(() => buildRecordEntries(fields), [fields]);
 
