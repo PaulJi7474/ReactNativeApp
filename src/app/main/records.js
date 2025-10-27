@@ -486,22 +486,52 @@ export default function RecordsScreen() {
                   <Text style={styles.line} numberOfLines={1} ellipsizeMode="middle">
                     <Text style={styles.textInCardBold}>Name: </Text>
 
-                    {record.fieldType ? (
-                      <Text style={styles.recordFieldValue}>{record.fieldType}</Text>
+                    {record.fieldName ? (
+                      <Text style={styles.recordFieldValue}>{record.fieldName}</Text>
                     ) : null}
                   </Text>
 
-                  {isImageRecord &&
-                  record.rawValue &&
-                  typeof record.rawValue.value === "string" &&
-                  record.rawValue.value.trim() ? (
-                    <Text style={styles.line} numberOfLines={2} ellipsizeMode="tail">
-                      <Text style={styles.textInCardBold}>Text: </Text>
-                      <Text style={styles.recordFieldValue}>
-                        {record.rawValue.value}
-                      </Text>
-                    </Text>
-                  ) : null}
+                  {(() => {
+                    if (!record) {
+                      return null;
+                    }
+
+                    const hasImageText =
+                      isImageRecord &&
+                      record.rawValue &&
+                      typeof record.rawValue.value === "string" &&
+                      record.rawValue.value.trim();
+
+                    if (hasImageText) {
+                      return (
+                        <Text
+                          style={styles.line}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          <Text style={styles.textInCardBold}>Text: </Text>
+                          <Text style={styles.recordFieldValue}>
+                            {record.rawValue.value}
+                          </Text>
+                        </Text>
+                      );
+                    }
+
+                    if (record.value || record.value === "0") {
+                      return (
+                        <Text
+                          style={styles.line}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          <Text style={styles.textInCardBold}>Value: </Text>
+                          <Text style={styles.recordFieldValue}>{record.value}</Text>
+                        </Text>
+                      );
+                    }
+
+                    return null;
+                  })()}
 
                   {hasImagePath ? (
                     <Image
@@ -602,6 +632,9 @@ const styles = StyleSheet.create({
   recordCard: {
     ...sharedStyles.card,
     gap: spacing.sm,
+  },
+  line: {
+    flexShrink: 1,
   },
   textInCardBold: {
     fontSize: 14,
